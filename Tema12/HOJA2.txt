@@ -1,0 +1,387 @@
+﻿-----Ejercicio 5
+create or replace 
+PROCEDURE codificar_productos
+AS
+  CURSOR c_producto
+  IS
+    SELECT nombre,
+      id_categoria,
+      SUM(cantidad) AS sumc
+    FROM productos
+    JOIN detalles_pedidos USING (numero_producto)
+    GROUP BY nombre,
+      id_categoria
+    ORDER BY id_categoria,sumc asc;
+  v_producto c_producto%ROWTYPE;
+  v_cont INTEGER;
+  v_id_cat_aux productos.id_categoria%TYPE;
+BEGIN
+  OPEN c_producto;
+  FETCH c_producto INTO v_producto;
+  WHILE c_producto%FOUND
+  LOOP
+    v_id_cat_aux:= v_producto.id_categoria;
+    v_cont:=0;
+    WHILE c_producto%FOUND AND v_producto.id_categoria=v_id_cat_aux
+    LOOP
+      v_cont:= v_cont+1;
+      IF (v_cont<=3) THEN
+        DBMS_OUTPUT.PUT_LINE(v_producto.nombre ||' * '|| v_producto.id_categoria||' * '|| v_producto.sumc);
+      END IF;
+      FETCH c_producto INTO v_producto;
+    END LOOP;
+  END LOOP;
+  CLOSE c_producto;
+END codificar_productos;
+
+
+
+-----Ejercicio 6
+create or replace 
+Procedure ejercicio6_hoja2
+Is
+    
+    Cursor tabla Is
+    Select id_categoria, nombre, Precio_Venta, Stock
+    From Productos
+    order by id_categoria; 
+
+    
+    V_Conta Number:=1;
+    V_Categoria Number;    
+    v_guardar_categoria number;
+    V_Nombre Varchar2(80);
+    V_Precio_Venta Number;    
+    V_Stock Number:=0;  
+    V_Total_Productos_Categoria Number:=0;
+    V_Total_Productos Number:=0;
+    V_Precio_Stock_Categoria Number:=0;
+    V_Precio_Stock Number:=0;
+
+
+Begin
+    
+      Open tabla;
+      Dbms_Output.Put_Line('    ****PRODCUTOS CON SU PRECIO****');
+      Fetch Tabla Into V_Categoria, V_Nombre, V_Precio_Venta, V_Stock;
+      Dbms_Output.Put_Line('CATEGORIA ' || V_Categoria || ':');
+      V_Guardar_Categoria:= V_Categoria;
+      While (Tabla%Found) Loop
+          Dbms_Output.Put_Line(V_Nombre || ' * ' || V_Precio_Venta ||'€' || ' * ' || V_Stock || ' unidades');
+          V_Total_Productos_Categoria:= V_Total_Productos_Categoria + 1;
+          v_precio_stock_categoria:=v_precio_stock_categoria + (V_Precio_Venta*V_Stock);
+          Fetch Tabla Into V_Categoria, V_Nombre, V_Precio_Venta, V_Stock;
+         
+          If (Tabla%Notfound) Then
+              V_Total_Productos:= V_Total_Productos + V_Total_Productos_Categoria;
+              V_Precio_Stock:= V_Precio_Stock + V_Precio_Stock_Categoria;
+              Dbms_Output.Put_Line('CATEGORIA ' || V_Categoria || ' * ' || V_Total_Productos_Categoria ||' productos totales '  || V_Precio_Stock_Categoria ||'€');
+              Dbms_Output.Put_Line('');
+              Dbms_Output.Put_Line(V_Total_Productos || ' productos totales con un precio de ' || V_Precio_Stock ||'€');
+              
+          End If;
+          
+          If (V_Guardar_Categoria!=V_Categoria) Then
+              Dbms_Output.Put_Line('CATEGORIA ' ||V_GUARDAR_CATEGORIA || ': ' || V_Total_Productos_Categoria ||' productos totales ' || V_Precio_Stock_Categoria ||'€');
+              V_Precio_Stock:= V_Precio_Stock + V_Precio_Stock_Categoria;
+              V_GUARDAR_CATEGORIA:= V_Categoria;
+              V_Total_Productos:= V_Total_Productos + V_Total_Productos_Categoria;
+              
+              Dbms_Output.Put_Line('');
+              Dbms_Output.Put_Line('');
+
+              Dbms_Output.Put_Line('CATEGORIA ' ||V_Categoria || ':');
+              V_Precio_Stock_Categoria:= 0;
+              V_Total_Productos_Categoria:= 0;
+          End If;
+          
+      End Loop;      
+      Close Tabla;        
+End;
+
+-----Ejercicio 7
+create or replace 
+PROCEDURE EJERCICIO7(DESCRICION VARCHAR2) AS
+  CURSOR NUMEROCATEGORIA IS
+  SELECT MAX(ID_CATEGORIA)
+  FROM CATEGORIAS;
+  V_NUMERO_CATEGORIA NUMBER;
+  V_NUMERO_AUX NUMBER;
+BEGIN
+  OPEN NUMEROCATEGORIA;
+  FETCH NUMEROCATEGORIA INTO V_NUMERO_AUX;
+  DBMS_OUTPUT.PUT_LINE('LA MAYOR CATEGORIA ACUTAL ES: ' || '  ' || V_NUMERO_AUX);
+  CLOSE NUMEROCATEGORIA;
+  V_NUMERO_CATEGORIA:=V_NUMERO_AUX + 10;
+  INSERT INTO CATEGORIAS (ID_CATEGORIA,DESCRIPCION)
+  VALUES (V_NUMERO_CATEGORIA,DESCRICION);
+  DBMS_OUTPUT.PUT_LINE('CATEGORIA CREADA: ' || '  ' || V_NUMERO_CATEGORIA|| '  ' || DESCRICION );
+EXCEPTION
+  WHEN TOO_MANY_ROWS THEN
+    DBMS_OUTPUT.PUT_LINE('ERROR ENCONTRADO: TO MANY ROWS');
+END EJERCICIO7;
+
+-----Ejercicio 8
+create or replace 
+PROCEDURE ejercicio8(
+    numero         NUMBER,
+    nombre         VARCHAR2 := NULL,
+    descripcion    VARCHAR2 :=NULL,
+    precio_venta   NUMBER   :=0,
+    stock          NUMBER   :=0,
+    v_id_categoria NUMBER   :=0)
+AS
+  ERR_STOCK  EXCEPTION;
+  ERR_PRECIO EXCEPTION;
+  v_categorias categorias%ROWTYPE;
+BEGIN
+  SELECT *
+  INTO v_categorias
+  FROM categorias
+  WHERE id_categoria = v_id_categoria;
+  IF(precio_venta   <=0) THEN
+    raise err_precio;
+  END IF;
+  IF (stock < 0) THEN
+    raise err_stock;
+  END IF;
+  INSERT
+  INTO productos VALUES
+    (
+      numero,
+      nombre,
+      descripcion,
+      precio_venta,
+      stock,
+      v_id_categoria
+    );
+EXCEPTION
+WHEN no_data_found THEN
+  raise_application_error(-20004,'La categoria no existe');
+WHEN err_stock THEN
+  raise_application_error(-20003,'El stock no puede ser menor de 0');
+WHEN err_precio THEN
+  raise_application_error(-20002,'El precio no puede ser menor de 0');
+WHEN dup_val_on_index THEN
+  raise_application_error(-20001,'Ya existe un producto con ese numero');
+WHEN OTHERS THEN
+  raise_application_error(-20000, 'Error en la aplicación');
+END;
+-------ejercicio 10
+create or replace 
+PROCEDURE subir_precio(
+    p_id_categoria categorias.id_categoria%TYPE,
+    p_porcentaje_aumento INTEGER)
+IS
+  tmp_categoria categorias.id_categoria%TYPE;
+  to_low_value EXCEPTION;
+BEGIN
+  --CATEGORIAS
+  SELECT id_categoria
+  INTO tmp_categoria
+    FROM categorias
+      WHERE id_categoria = p_id_categoria;
+  
+  --PRODUCTOS
+  SELECT id_categoria
+  INTO tmp_categoria
+    FROM productos
+      WHERE id_categoria = p_id_categoria
+      AND ROWNUM = 1;
+  
+  IF p_porcentaje_aumento < 1 THEN
+    RAISE to_low_value;
+  END IF;
+  
+  UPDATE productos SET precio_venta = precio_venta * (1 + p_porcentaje_aumento / 100)
+    WHERE id_categoria = p_id_categoria;
+    
+  dbms_output.put_line('Precios de la categoría ' || p_id_categoria || ' aumentados un ' || p_porcentaje_aumento || '% en la tabla PRODUCTOS');
+EXCEPTION
+  WHEN no_data_found THEN
+    dbms_output.put_line('La categoría: ' || p_id_categoria || ' no existe');
+  WHEN to_low_value THEN
+    dbms_output.put_line('El valor mínimo del porcentaje es 1. Porcentaje introducido: ' || p_porcentaje_aumento || ' (ID:' || p_id_categoria || ')');
+END;
+
+-----------ejercicio 11
+create or replace 
+procedure ejercicio11(p_id_categoria number, p_porcentaje_aumento Number)
+is
+  cursor cur is 
+    select precio_venta, rowid
+    from productos
+    where id_categoria = p_id_categoria;
+  v_cursor cur%ROWTYPE;
+  v_precio_venta productos.precio_venta%type;
+  v_aumento number;
+  v_aumentado number;
+begin
+    open cur;
+    loop
+      FETCH cur INTO v_cursor;
+      exit
+    when cur%NOTFOUND;
+      v_precio_venta := v_cursor.precio_venta;
+      v_aumento := (v_cursor.precio_venta * p_porcentaje_aumento) / 100;
+      v_aumentado := v_precio_venta + v_aumento;
+      UPDATE productos 
+      SET precio_venta = v_aumentado
+      WHERE rowid = v_cursor.rowid;   
+    end loop;
+      DBMS_OUTPUT.PUT_LINE('---Lineas Actualizadas---');
+    close cur;
+end ejercicio11;
+---------Ejercicio 12
+
+create or replace 
+PROCEDURE ejercicio12_tema12
+
+is
+
+cursor cur1 is
+  select nombre,id_categoria,precio_venta from productos;
+
+v_nombre varchar2(100); 
+v_precio_venta number (10):=0;
+v_precio_venta_medio number(10):=0;
+v_id_categoria number(3);
+v_calcular_subida number(10):=0;
+begin
+open cur1;
+fetch cur1 into v_nombre,v_id_categoria,v_precio_venta;
+while(cur1%found) loop
+  select avg(precio_venta) into v_precio_venta_medio
+    from productos where id_categoria=v_id_categoria
+    group by id_categoria;
+    
+  if v_precio_venta<v_precio_venta_medio then
+    v_calcular_subida:=v_precio_venta_medio-v_precio_venta;
+    v_calcular_subida:=v_calcular_subida*0.5+v_precio_venta;
+    update productos 
+      set precio_venta=v_calcular_subida 
+        where nombre=v_nombre;
+    DBMS_OUTPUT.PUT_LINE(v_nombre||' Se ha actualizado correctamente  Precio antiguo: ' ||v_precio_venta || ' Precio nuevo: ' ||v_calcular_subida);
+  end if;
+  
+  fetch cur1 into v_nombre,v_id_categoria,v_precio_venta;
+end loop;
+EXCEPTION
+WHEN no_data_found THEN
+  raise_application_error(-20001,'La categoria no existe');
+WHEN program_error then
+  raise_application_error(-20000, 'Ha habido un problema');
+end;
+
+---------Ejercicio 13
+create or replace 
+PROCEDURE ejercicio13
+AS
+  CURSOR pedido
+  IS
+    SELECT numero_pedido,
+      fecha_pedido,
+      fecha_envio,
+      id_cliente,
+      id_empleado,
+      precio_total
+    FROM pedidos NATURAL
+    JOIN clientes
+    ORDER BY apellidos;
+  v_cursor pedido%ROWTYPE;
+  v_ap_cliente clientes.apellidos%TYPE;
+  v_ap_empl empleados.apellidos%TYPE;
+  v_nombre_prod productos.nombre%TYPE;
+  v_idcliente_actual clientes.id_cliente%TYPE;
+  v_coste_pedido    NUMBER;
+  v_importe_cliente NUMBER:=0;
+  v_importe_total   NUMBER:=0;
+  v_numero_lineas   NUMBER;
+  CURSOR detalles
+  IS
+    SELECT * FROM detalles_pedidos WHERE numero_pedido = v_cursor.numero_pedido;
+  v_detalles detalles%ROWTYPE;
+BEGIN
+  dbms_output.put_line('******************************');
+  OPEN pedido;
+  FETCH pedido INTO v_cursor;
+  WHILE pedido%FOUND
+  LOOP
+    v_numero_lineas:=0;
+    v_coste_pedido :=0;
+    SELECT apellidos
+    INTO v_ap_cliente
+    FROM clientes
+    WHERE id_cliente    = v_cursor.id_cliente;
+    v_idcliente_actual := v_cursor.id_cliente;
+    SELECT apellidos
+    INTO v_ap_empl
+    FROM empleados
+    WHERE id_empleado = v_cursor.id_empleado;
+    dbms_output.put_line('Datos del pedido:       Cliente: '|| v_ap_cliente ||'       Empleado que atendió: ' || v_ap_empl || '    Fecha: ' || v_cursor.fecha_pedido);
+    OPEN detalles;
+    FETCH detalles INTO v_detalles;
+    WHILE detalles%FOUND
+    LOOP
+      SELECT nombre
+      INTO v_nombre_prod
+      FROM productos
+      WHERE numero_producto = v_detalles.numero_producto;
+      dbms_output.put_line('Nombre de producto: ' || v_nombre_prod || '   Unidades pedidas: ' ||v_detalles.cantidad || '  Precio por unidad: ' || v_detalles.precio ||'€');
+      FETCH detalles INTO v_detalles;
+      v_numero_lineas := v_numero_lineas + 1;
+    END LOOP;
+    dbms_output.put_line('Numero de líneas del pedido: ' || v_numero_lineas);
+    dbms_output.put_line('Importe total del pedido: ' ||v_cursor.precio_total||'€');
+    v_importe_cliente := v_importe_cliente + v_cursor.precio_total;
+    v_importe_total   := v_importe_total   + v_cursor.precio_total;
+    CLOSE detalles;
+    dbms_output.put_line('');
+    dbms_output.put_line('______________________________');
+    FETCH pedido INTO v_cursor;
+    IF(v_cursor.id_cliente != v_idcliente_actual) THEN
+      dbms_output.put_line('--------------');
+      dbms_output.put_line('Importe total de todos los pedidos del cliente: ' ||v_importe_cliente||'€');
+      dbms_output.put_line('______________');
+      v_importe_cliente  := 0;
+      v_idcliente_actual := v_cursor.id_cliente;
+    END IF;
+  END LOOP;
+  dbms_output.put_line('--------------');
+  dbms_output.put_line('Importe total de todos los pedidos del cliente: ' ||v_importe_cliente||'€');
+  dbms_output.put_line('______________');
+  CLOSE pedido;
+  dbms_output.put_line('Importe total de todos los pedidos: ' ||v_importe_total||'€');
+  dbms_output.put_line('******************************');
+END;
+
+-------ejercicio 14
+create or replace 
+Procedure Ejercicio14_Hoja2
+Is
+    Cursor Tabla Is
+    Select  Numero_Pedido, Clientes.Apellidos, Empleados.Apellidos, 
+            Fecha_Pedido, Sum(Precio*Cantidad)
+    From Pedidos Natural Join Detalles_Pedidos Natural Join Productos P Join Clientes Using(Id_Cliente) Join Empleados Using(Id_Empleado)
+    group by numero_pedido, Clientes.Apellidos, Empleados.apellidos, fecha_pedido
+    ORDER BY numero_pedido;
+
+    V_Num_Ped Number;
+    V_Cli_Ape varchar2(100);
+    V_emp_ape varchar2(100);
+    V_Fech Date;
+    V_Importe Number;
+    v_importe_total NUMBER:=0;
+
+
+Begin
+       Open Tabla;
+       Fetch Tabla Into V_Num_Ped, V_Cli_Ape, V_emp_ape, V_Fech,V_Importe ;
+       While (Tabla%Found) Loop 
+            Insert Into T_Ingresos Values (V_Num_Ped, V_Cli_Ape, V_emp_ape, V_Fech,V_Importe);
+            Fetch Tabla Into V_Num_Ped, V_Cli_Ape, V_emp_ape, V_Fech,V_Importe ;
+       End Loop;
+Exception
+    When No_Data_Found Then
+      Dbms_Output.Put_Line ('No se han encontrado datos...'); 
+End;
